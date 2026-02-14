@@ -1,6 +1,7 @@
-FROM node:18
+FROM node:20-alpine as build
 WORKDIR /app
+COPY package*.json ./
+RUN npm ci
 COPY . .
-RUN npm install
-EXPOSE 3000
-CMD ["node", "app.js"]
+RUN npm run build
+
