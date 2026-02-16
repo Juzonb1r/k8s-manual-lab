@@ -19,7 +19,7 @@ pipeline {
             steps {
                 echo "Building Docker image..."
                 sh """
-                docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
+                  docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
                 """
             }
         }
@@ -31,9 +31,11 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh """
-                    echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                    """
+                    sh '''
+                      docker logout || true
+                      echo "$DOCKER_PASS" | tr -d '\r' | docker login -u "$DOCKER_USER" --password-stdin
+                      docker info >/dev/null
+                    '''
                 }
             }
         }
@@ -42,21 +44,15 @@ pipeline {
             steps {
                 echo "Pushing image to DockerHub..."
                 sh """
-                docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
+                  docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
                 """
             }
         }
     }
 
     post {
-        success {
-            echo "CI Pipeline completed successfully!"
-        }
-        failure {
-            echo "CI Pipeline failed!"
-        }
-        always {
-            echo "Pipeline finished."
-        }
+        success { echo "CI Pipeline completed successfully!" }
+        failure { echo "CI Pipeline failed!" }
+        always  { echo "Pipeline finished." }
     }
 }
