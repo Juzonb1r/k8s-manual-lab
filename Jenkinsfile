@@ -1,58 +1,43 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        DOCKER_IMAGE = "Juzonb1r/devops-lab"
-        IMAGE_TAG = "${BUILD_NUMBER}"
+  environment {
+    DOCKERHUB_USER = "juzonb1r"
+    IMAGE_NAME     = "devops-lab"
+    IMAGE_TAG      = "${BUILD_NUMBER}"
+    FULL_IMAGE     = "docker.io/${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
     }
 
-    stages {
-
-        stage('Checkout') {
-            steps {
-                echo "Cloning repository..."
-                checkout scm
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                echo "Building Docker image..."
-                sh """
-                  docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
-                """
-            }
-        }
-
-        stage('Login to DockerHub') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh '''
-                      docker logout || true
-                      echo "$DOCKER_PASS" | tr -d '\r' | docker login -u "$DOCKER_USER" --password-stdin
-                      docker info >/dev/null
-                    '''
-                }
-            }
-        }
-
-        stage('Push Image') {
-            steps {
-                echo "Pushing image to DockerHub..."
-                sh """
-                  docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
-                """
-            }
-        }
+    stage('Build Docker Image') {
+      steps {
+        sh '''
+          docker build -t "$FULL_IMAGE" .
+        '''
+      }
     }
 
-    post {
-        success { echo "CI Pipeline completed successfully!" }
-        failure { echo "CI Pipeline failed!" }
-        always  { echo "Pipeline finished." }
+    stage('Login to DockerHub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          sh '''
+            docker logout || true
+            printf "%s" "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+          '''
+        }
+      }
     }
+
+    stage('Push Image') {
+      steps {
+        sh '''
+          docker push "$FULL_IMAGE"
+        '''
+      }
+    }
+  }
 }
